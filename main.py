@@ -95,8 +95,6 @@ class object:
         self.vertices_position = vertex_table
 
 
-
-
 class camera:
     def __init__(self, focal_length, screen_size) -> None:
         self.focal_length = focal_length
