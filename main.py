@@ -200,6 +200,7 @@ c = camera(-200, window_size)
 point_color = (255, 0, 0)
 line_color = (0, 0, 255)
 background_color = (0, 0, 0)
+rgb_color = (0, 0, 0)
 
 ob_ = cube
 
@@ -219,13 +220,17 @@ while running:
     for i in c.screen_projection(ob_.vertices_position):
         point_pos = i
         point_radius = 2
-        pygame.draw.circle(screen, point_color, point_pos, point_radius)
+        pygame.draw.circle(screen, rgb_color, point_pos, point_radius)
         
     for edge in ob_.edge_table:
         pos0 = p[edge[0]]
         pos1 = p[edge[1]]
-        pygame.draw.line(screen, line_color, pos0, pos1)
+        pygame.draw.line(screen, rgb_color, pos0, pos1, 5)
     
+
+    t = pygame.time.get_ticks() / 10**2
+    # RGB effect
+    rgb_color = ((math.sin(t) + 1) * 127.5, (math.sin(t + pi/2) + 1) * 127.5, (math.sin(t + pi) + 1) * 127.5)
 
 
     # Update the display
