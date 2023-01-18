@@ -94,6 +94,9 @@ class object:
             vertex_table[i] = vector_add(vertex, translation_vector)
         self.vertices_position = vertex_table
 
+    def move_origin(self, translation_vector):
+        self.origin = vector_add(self.origin, translation_vector)
+
 
 class camera:
     def __init__(self, focal_length, screen_size) -> None:
@@ -189,7 +192,7 @@ house.translate([800, 0, -100])
 
 alpha = 0
 pi = math.pi
-
+animation_speed = 1
 
 # camera
 c = camera(-200, window_size)
@@ -200,6 +203,7 @@ line_color = (0, 0, 255)
 background_color = (0, 0, 0)
 rgb_color = (0, 0, 0)
 
+cube.move_origin([100, 0, 0])
 ob_ = cube
 
 running = True
@@ -209,11 +213,12 @@ while running:
             running = False
 
     screen.fill(background_color)
+    t = (pygame.time.get_ticks() / 10**2) * animation_speed
 
 
     p = c.screen_projection(ob_.vertices_position)
-    ob_.rotate([0.00, 0.00, -0.001])
-    ob_.translate([0, 0, 0])
+    ob_.rotate([0.00, 0.00, -0.001 * animation_speed])
+    ob_.translate([0, 0, abs(math.sin(t)) * 0])
 
     for i in c.screen_projection(ob_.vertices_position):
         point_pos = i
@@ -226,7 +231,7 @@ while running:
         pygame.draw.line(screen, rgb_color, pos0, pos1, 5)
     
 
-    t = pygame.time.get_ticks() / 10**2
+    
     # RGB effect
     rgb_color = ((math.sin(t) + 1) * 127.5, (math.sin(t + pi/2) + 1) * 127.5, (math.sin(t + pi) + 1) * 127.5)
 
