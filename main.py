@@ -14,7 +14,6 @@ screen = pygame.display.set_mode((window_size[0], window_size[1]))
 pygame.display.set_caption("kys")
 
 
-
 def rotateX(P, theta):
     y = (P[1] * math.cos(theta)) + (P[0] * -math.sin(theta))
     x = (P[1] * math.sin(theta)) + (P[0] * math.cos(theta))
@@ -195,7 +194,7 @@ pi = math.pi
 animation_speed = 1
 
 # camera
-c = camera(-200, window_size)
+c = camera(-1000, window_size)
 
 
 point_color = (255, 0, 0)
