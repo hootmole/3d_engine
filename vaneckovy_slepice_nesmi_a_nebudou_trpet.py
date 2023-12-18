@@ -15,6 +15,7 @@ win = pygame.display.set_mode(window_size)
 # Set the title of the window
 pygame.display.set_caption("kys")
 
+
 class Vector:
     def __init__(self, nums: list):
         self.nums = nums  # Data vektoru, představující čísla ve vektoru
@@ -136,10 +137,10 @@ class Object:
         self.origin = origin
         self.color = color
         self.line_thickness = line_thickness
-        self.scale_vector = Vector([0, 0, 0])
+        self.scale_vector = Vector([1, 1, 1])
         self.position_vector = Vector([0, 0, 0])
         self.rotation_vector = Vector([0, 0, 0])
-        self.vertices_positions = copy.deepcopy(vertex_table)
+        self.mesh = copy.deepcopy(vertex_table)
 
     
     def compute_average_origin(self):
@@ -154,20 +155,20 @@ class Object:
 
     def compute_mesh(self) -> None:
         translated_origin = self.origin + self.position_vector
-        self.computed_mesh = copy.deepcopy(self.vertices_positions)
+        computed_mesh = [0] * len(self.mesh)
 
         # scale, rotation, translation
-        for i, vertex in enumerate(self.computed_mesh):
+        for i in range(len(computed_mesh)):
             # scale
-            transformed_vertex = (vertex - translated_origin) * self.scale_vector + translated_origin
+            transformed_vertex = self.mesh[i] * self.scale_vector
             # rotation
-            transformed_vertex = (transformed_vertex - translated_origin)
-
-            transformed_vertex.rotateX(self.rotation_vector[0]).rotateY(self.rotation_vector[1]).rotateZ(self.rotation_vector[2])
-
-
+            transformed_vertex.rotateX(self.rotation_vector[0])
+            transformed_vertex.rotateY(self.rotation_vector[1])
+            transformed_vertex.rotateZ(self.rotation_vector[2])
             # translation
-            self.computed_mesh[i] = transformed_vertex + self.position_vector
+            computed_mesh[i] = (transformed_vertex + self.position_vector)
+            
+        self.computed_mesh = computed_mesh
 
 
 class Camera:
@@ -208,7 +209,7 @@ class Scene:
                         translated_vertex[2] * self.camera.focal_length / translated_vertex[1],
                     ])
 
-                    pygame.draw.circle(self.window, "red", projected_vertex.nums, 5)
+                    pygame.draw.circle(self.window, "red", screenSpaceOrientation2D(projected_vertex), 2)
             
             if is_visible:
                 object.computed_mesh = normalized_mesh # object ready for render pipeline
@@ -218,6 +219,11 @@ class Scene:
             1
 
         
+def screenSpaceOrientation2D(vec: Vector):
+    return [
+        vec[0] + window_size[0] / 2,
+        window_size[1] / 2 - vec[1]
+    ]
 
 
 vertex_table = [
@@ -247,10 +253,13 @@ edge_table = [
 
 
 o = Object(vertex_table, edge_table, Vector([0, 0, 0]), "red", 4)
-o.position_vector = Vector([300, 300, 300])
+o.position_vector = Vector([0, 0, 0])
+o.scale_vector *= 2
+o.rotation_vector += Vector([0, 0, 1])
 o.compute_mesh()
-print(o.computed_mesh)
-camera = Camera(3, 1, Vector([0, -10, 0]), Vector([0, 0, 0]), 0.01)
+for i in o.computed_mesh:
+    print(i)
+camera = Camera(100, 1, Vector([0, -5, 0]), Vector([0, 0, 0]), 0.01)
 scene = Scene([o], camera, win)
 
 
@@ -263,7 +272,6 @@ while running:
 
     win.fill("black")
 
-    pygame.draw.circle(win, "red", [400, 100], 50)
 
     scene.render()
 
