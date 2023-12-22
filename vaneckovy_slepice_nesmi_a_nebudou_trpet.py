@@ -157,11 +157,11 @@ class Object:
         translated_origin = self.origin + self.position_vector
         computed_mesh = [0] * len(self.mesh)
 
-        # scale, rotation, translation
+        # scale, rotation_vector, translation
         for i in range(len(computed_mesh)):
             # scale
             transformed_vertex = self.mesh[i] * self.scale_vector
-            # rotation
+            # rotation_vector
             transformed_vertex.rotateX(self.rotation_vector[0])
             transformed_vertex.rotateY(self.rotation_vector[1])
             transformed_vertex.rotateZ(self.rotation_vector[2])
@@ -172,11 +172,11 @@ class Object:
 
 
 class Camera:
-    def __init__(self, focal_length: float, aspect_ratio: float, position: Vector, rotation: Vector, clip_start: float) -> None:
+    def __init__(self, focal_length: float, aspect_ratio: float, position_vector: Vector, rotation_vector: Vector, clip_start: float) -> None:
         self.focal_length = focal_length
         self.aspect_ratio = aspect_ratio
-        self.position = position
-        self.rotation = rotation
+        self.position_vector = position_vector
+        self.rotation_vector = rotation_vector
         self.clip_start = clip_start
         
 
@@ -187,36 +187,44 @@ class Scene:
         self.window = window
 
     def render(self):
-        visible_objects = []
 
         for object in self.objects:
             object.compute_mesh()
 
-            normalized_mesh = []
+            world_space_mesh = []
+            screen_space_vertex_list = []
             for vertex_index, vertex in enumerate(object.computed_mesh):
                 is_visible = False
                 # translate the scene by camera origin
-                translated_vertex = vertex - self.camera.position
-                # rotaste the scene by -camera roatation
-                translated_vertex.rotateX(-self.camera.rotation[0]).rotateY(-self.camera.rotation[1]).rotateZ(-self.camera.rotation[2])
+                translated_vertex = vertex - self.camera.position_vector
+                # rotate the scene by -camera rotation
+                translated_vertex.rotateX(-self.camera.rotation_vector[0]).rotateY(-self.camera.rotation_vector[1]).rotateZ(-self.camera.rotation_vector[2])
 
-                if translated_vertex[1] > self.camera.clip_start: # check if vertex 
-                    normalized_mesh.append(translated_vertex)
-                    is_visible = True
+                if 1: # check if vertex is far enough from camera
+                    world_space_mesh.append(translated_vertex)
 
                     projected_vertex = Vector([
                         translated_vertex[0] * self.camera.focal_length / translated_vertex[1],
                         translated_vertex[2] * self.camera.focal_length / translated_vertex[1],
                     ])
-
-                    pygame.draw.circle(self.window, "red", screenSpaceOrientation2D(projected_vertex), 2)
+                    screen_space_vertex_list.append(projected_vertex)
             
-            if is_visible:
-                object.computed_mesh = normalized_mesh # object ready for render pipeline
-                visible_objects.append(object)
+            # vertex draw
+            # for index, screen_space_vertex in enumerate(screen_space_vertex_list):
+            #     pygame.draw.circle(self.window, object.color, screenSpaceOrientation2D(screen_space_vertex), 2)
 
-        for object in visible_objects:
-            1
+            # edge draw
+            for index, edge in enumerate(object.edge_table):
+                v1 = screen_space_vertex_list[edge[0]]
+                v2 = screen_space_vertex_list[edge[1]]
+
+                pygame.draw.aaline(self.window, object.color, screenSpaceOrientation2D(v1), screenSpaceOrientation2D(v2))
+
+
+
+            
+
+
 
         
 def screenSpaceOrientation2D(vec: Vector):
@@ -259,10 +267,11 @@ o.rotation_vector += Vector([0, 0, 1])
 o.compute_mesh()
 for i in o.computed_mesh:
     print(i)
-camera = Camera(100, 1, Vector([0, -5, 0]), Vector([0, 0, 0]), 0.01)
+camera = Camera(50, 1, Vector([0, -5, 0]), Vector([0, 0, 0]), 0.01)
 scene = Scene([o], camera, win)
 
-
+t = 0
+speed = 0.01
 
 running = True
 while running:
@@ -270,9 +279,28 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    keys = pygame.key.get_pressed()
+
+    if keys[pygame.K_w]:
+        camera.position_vector += Vector([0, speed, 0])
+
+    if keys[pygame.K_s]:
+        camera.position_vector += Vector([0, -speed, 0])
+
+    if keys[pygame.K_a]:
+        camera.position_vector += Vector([-speed, 0, 0])
+
+    if keys[pygame.K_d]:
+        camera.position_vector += Vector([speed, 0, 0])
+
+
+
+
     win.fill("black")
+    o.rotation_vector += Vector([0.001, 0.001, 0.001])
 
 
     scene.render()
 
     pygame.display.flip()
+    t += 0.001
