@@ -14,6 +14,7 @@ win = pygame.display.set_mode(window_size)
 
 # Set the title of the window
 pygame.display.set_caption("kys")
+clock = pygame.time.Clock()
 
 
 class Vector:
@@ -141,6 +142,7 @@ class Object:
         self.position_vector = Vector([0, 0, 0])
         self.rotation_vector = Vector([0, 0, 0])
         self.mesh = copy.deepcopy(vertex_table)
+        self.screen_vertex_projection_list = []
 
     
     def compute_average_origin(self):
@@ -187,28 +189,46 @@ class Scene:
         self.window = window
 
     def render(self):
+        visible_objects = []
 
         for object in self.objects:
+            is_visible = False
             object.compute_mesh()
 
             world_space_mesh = []
             screen_space_vertex_list = []
             for vertex_index, vertex in enumerate(object.computed_mesh):
-                is_visible = False
                 # translate the scene by camera origin
                 translated_vertex = vertex - self.camera.position_vector
                 # rotate the scene by -camera rotation
                 translated_vertex.rotateX(-self.camera.rotation_vector[0]).rotateY(-self.camera.rotation_vector[1]).rotateZ(-self.camera.rotation_vector[2])
+                world_space_mesh.append(translated_vertex)
 
-                if 1: # check if vertex is far enough from camera
-                    world_space_mesh.append(translated_vertex)
 
+                if translated_vertex[1] == 0:
+                    projected_vertex = Vector([float("inf"), float("inf")])
+
+                else:
                     projected_vertex = Vector([
                         translated_vertex[0] * self.camera.focal_length / translated_vertex[1],
                         translated_vertex[2] * self.camera.focal_length / translated_vertex[1],
                     ])
+
+                if translated_vertex[1] > self.camera.clip_start: # check if vertex is far enough from camera
+                    is_visible = True
+                    projected_vertex.nums.append(1) # in front of the camera
                     screen_space_vertex_list.append(projected_vertex)
+
+                else:
+                    projected_vertex *= -100 # to ensure the single vertex visible edge spans to the screen border and inverts the position
+                    projected_vertex.nums.append(0) # behind the camera
+                    screen_space_vertex_list.append(projected_vertex)
+
+
+            object.screen_vertex_projection_list = screen_space_vertex_list
             
+            if is_visible:
+                visible_objects.append(object)
             # vertex draw
             # for index, screen_space_vertex in enumerate(screen_space_vertex_list):
             #     pygame.draw.circle(self.window, object.color, screenSpaceOrientation2D(screen_space_vertex), 2)
@@ -218,7 +238,12 @@ class Scene:
                 v1 = screen_space_vertex_list[edge[0]]
                 v2 = screen_space_vertex_list[edge[1]]
 
-                pygame.draw.aaline(self.window, object.color, screenSpaceOrientation2D(v1), screenSpaceOrientation2D(v2))
+                if v1[2] or v2[2]:
+                    pygame.draw.aaline(self.window, object.color, screenSpaceOrientation2D(v1), screenSpaceOrientation2D(v2))
+
+
+            for object in visible_objects:
+                1
 
 
 
@@ -263,18 +288,23 @@ edge_table = [
 o = Object(vertex_table, edge_table, Vector([0, 0, 0]), "red", 4)
 o.position_vector = Vector([0, 0, 0])
 o.scale_vector *= 2
-o.rotation_vector += Vector([0, 0, 1])
+o.rotation_vector += Vector([0, 0, 0])
 o.compute_mesh()
-for i in o.computed_mesh:
-    print(i)
-camera = Camera(50, 1, Vector([0, -5, 0]), Vector([0, 0, 0]), 0.01)
+
+
+camera = Camera(500, 1, Vector([0, -2, 0]), Vector([0, 0, 0]), 0.01)
 scene = Scene([o], camera, win)
 
 t = 0
-speed = 0.01
+speed = 0.03
+FPS = 300
+font = pygame.font.Font(None, 20)
 
+mouse_pos = Vector([])
 running = True
 while running:
+    clock.tick(FPS)
+    start_time = pygame.time.get_ticks()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -293,11 +323,38 @@ while running:
     if keys[pygame.K_d]:
         camera.position_vector += Vector([speed, 0, 0])
 
+    if keys[pygame.K_LSHIFT]:
+        camera.position_vector += Vector([0, 0, -speed])
 
+    if keys[pygame.K_f]:
+        camera.position_vector += Vector([0, 0, speed])
 
+    if keys[pygame.K_q]:
+        camera.rotation_vector += Vector([0, 0, 0.001])
+
+    if keys[pygame.K_e]:
+        camera.rotation_vector += Vector([0, 0, -0.001])
+
+    # mouse events
+    mouse_pos.nums = pygame.mouse.get_pos()
+    mouse_pos -= Vector([window_size[0] / 2, window_size[1] / 2])
+    mouse_pos.nums[1] *= -1
+    print(mouse_pos)
+    camera.rotation_vector = Vector([-mouse_pos[1] / 100, 0,  mouse_pos[0] / 100])
 
     win.fill("black")
-    o.rotation_vector += Vector([0.001, 0.001, 0.001])
+   
+    end_time = pygame.time.get_ticks()  # Get the end time of the frame
+    delta_time = end_time - start_time
+
+    fps_text = font.render("FPS: {:.2f}".format(clock.get_fps()), True, (255, 255, 255) if clock.get_fps() > FPS else (255, 0, 0))
+    win.blit(fps_text, (10, 10)) 
+
+    single_frame_delay_time_text = font.render("Δt: {:.0f} ms".format(delta_time), True, (255, 255, 255))
+    win.blit(single_frame_delay_time_text, (10, 30)) 
+
+
+    # o.rotation_vector += Vector([0.001, 0.001, 0.001])
 
 
     scene.render()
