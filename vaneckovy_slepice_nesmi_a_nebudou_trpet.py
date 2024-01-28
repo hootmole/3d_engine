@@ -19,64 +19,39 @@ clock = pygame.time.Clock()
 
 class Vector:
     def __init__(self, nums: list):
-        self.nums = nums  # Data vektoru, představující čísla ve vektoru
+        self.nums = list(nums)  # Data vektoru, představující čísla ve vektoru
 
-    def __add__(self, other_vector: "Vector"):
+    def __add__(self, other_vector):
         if isinstance(other_vector, Vector):
-
-            if len(self.nums) == len(other_vector.nums):
-                return Vector([a + b for a, b in zip(self.nums, other_vector.nums)])
-            else:
-                raise ValueError("Vectors have different dimensions")
-        
-        elif type(other_vector) == float or type(other_vector) == int:
+            return Vector([a + b for a, b in zip(self.nums, other_vector.nums)])
+        elif isinstance(other_vector, (float, int)):
             return Vector([a + other_vector for a in self.nums])
-        
         else:
             raise TypeError("Addition with invalid type")
-    
 
-    def __sub__(self, other_vector: "Vector"):
+    def __sub__(self, other_vector):
         if isinstance(other_vector, Vector):
-
-            if len(self.nums) == len(other_vector.nums):
-                return Vector([a - b for a, b in zip(self.nums, other_vector.nums)])
-            else:
-                raise ValueError("Vectors have different dimensions")
-            
-        elif type(other_vector) == float or type(other_vector) == int:
+            return Vector([a - b for a, b in zip(self.nums, other_vector.nums)])
+        elif isinstance(other_vector, (float, int)):
             return Vector([a - other_vector for a in self.nums])
-
         else:
-            raise TypeError("Addition with non-Vector type")
-        
+            raise TypeError("Subtraction with invalid type")
+
     def __mul__(self, other_vector):
         if isinstance(other_vector, Vector):
-
-            if len(self.nums) == len(other_vector.nums):
-                return Vector([a * b for a, b in zip(self.nums, other_vector.nums)])
-            else:
-                raise ValueError("Vectors have different dimensions")
-            
-        elif type(other_vector) == float or type(other_vector) == int:
+            return Vector([a * b for a, b in zip(self.nums, other_vector.nums)])
+        elif isinstance(other_vector, (float, int)):
             return Vector([a * other_vector for a in self.nums])
-
         else:
-            raise TypeError("Addition with non-Vector type")
-        
+            raise TypeError("Multiplication with invalid type")
+
     def __truediv__(self, other_vector):
         if isinstance(other_vector, Vector):
-
-            if len(self.nums) == len(other_vector.nums):
-                return Vector([a / b for a, b in zip(self.nums, other_vector.nums)])
-            else:
-                raise ValueError("Vectors have different dimensions")
-            
-        elif type(other_vector) == float or type(other_vector) == int:
+            return Vector([a / b for a, b in zip(self.nums, other_vector.nums)])
+        elif isinstance(other_vector, (float, int)):
             return Vector([a / other_vector for a in self.nums])
-            
         else:
-            raise TypeError("Addition with non-Vector type")
+            raise TypeError("Division with invalid type")
 
     def rotateX(self, angle: float):
         if len(self.nums) != 3:
@@ -122,6 +97,12 @@ class Vector:
     
     def Z_rotation(self):
         return math.atan2(self.nums[1], self.nums[0])
+    
+    def lenght(self):
+        square_sum = 0
+        for num in self.nums:
+            square_sum += num ** 2
+        return math.sqrt(square_sum)
         
 
     def __str__(self):
@@ -172,15 +153,51 @@ class Object:
             
         self.computed_mesh = computed_mesh
 
+    def read_obj_file(self, file_path):
+        vertices = []
+        edges = []
+
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+            for line in lines:
+                tokens = line.split()
+
+                if not tokens:
+                    continue
+
+                if tokens[0] == 'v':
+                    # Parse vertices
+                    x, y, z = map(float, tokens[1:])
+                    vertices.append(Vector([x, y, z]))
+
+                elif tokens[0] == 'f':
+                    # Parse faces (edges in this case)
+                    face_indices = [int(token.split('/')[0]) - 1 for token in tokens[1:]]
+                    for i in range(len(face_indices)):
+                        edges.append([face_indices[i], face_indices[(i + 1) % len(face_indices)]])
+
+        self.vertex_table = vertices
+        self.edge_table = edges
+        self.mesh = copy.deepcopy(self.vertex_table)
+
 
 class Camera:
-    def __init__(self, focal_length: float, aspect_ratio: float, position_vector: Vector, rotation_vector: Vector, clip_start: float) -> None:
+    def __init__(self, focal_length: float, aspect_ratio: float, position_vector: Vector, rotation_angles: Vector, clip_start: float) -> None:
         self.focal_length = focal_length
         self.aspect_ratio = aspect_ratio
         self.position_vector = position_vector
-        self.rotation_vector = rotation_vector
+        self.rotation_angles = rotation_angles
         self.clip_start = clip_start
+        self.look_vector = Vector
+
+    def compute_look_vector_euler(self):
+        pitch, yaw = self.rotation_angles[0], self.rotation_angles[2]
         
+        y = math.cos(pitch) * math.cos(yaw)
+        z = math.sin(pitch)
+        x = -math.cos(pitch) * math.sin(yaw)
+        self.look_vector = Vector([x, y, z])
 
 class Scene:
     def __init__(self, objects: list[Object], camera: Camera, window) -> None:
@@ -190,6 +207,7 @@ class Scene:
 
     def render(self):
         visible_objects = []
+        camera.compute_look_vector_euler()
 
         for object in self.objects:
             is_visible = False
@@ -201,12 +219,14 @@ class Scene:
                 # translate the scene by camera origin
                 translated_vertex = vertex - self.camera.position_vector
                 # rotate the scene by -camera rotation
-                translated_vertex.rotateX(-self.camera.rotation_vector[0]).rotateY(-self.camera.rotation_vector[1]).rotateZ(-self.camera.rotation_vector[2])
+                # translated_vertex.rotateX(-self.camera.rotation_angles[0]).rotateY(-self.camera.rotation_angles[1]).rotateZ(-self.camera.rotation_angles[2])
+                translated_vertex.rotateZ(-self.camera.rotation_angles[2]).rotateY(-self.camera.rotation_angles[1]).rotateX(-self.camera.rotation_angles[0])
                 world_space_mesh.append(translated_vertex)
 
 
                 if translated_vertex[1] == 0:
-                    projected_vertex = Vector([float("inf"), float("inf")])
+                    # projected_vertex = Vector([float("inf"), float("inf")]) 
+                    projected_vertex = Vector([0, 0])
 
                 else:
                     projected_vertex = Vector([
@@ -244,11 +264,6 @@ class Scene:
 
             for object in visible_objects:
                 1
-
-
-
-            
-
 
 
         
@@ -291,17 +306,26 @@ o.scale_vector *= 2
 o.rotation_vector += Vector([0, 0, 0])
 o.compute_mesh()
 
+ico = Object(0, 0, Vector([0, 0, 0]), "blue", 4)
+ico.read_obj_file("ico.obj")
+
+nig = Object(0, 0, Vector([0, 0, 0]), "blue", 4)
+nig.read_obj_file("nig.obj")
 
 camera = Camera(500, 1, Vector([0, -2, 0]), Vector([0, 0, 0]), 0.01)
-scene = Scene([o], camera, win)
+scene = Scene([nig], camera, win)
 
 t = 0
 speed = 0.03
 FPS = 300
 font = pygame.font.Font(None, 20)
-
-mouse_pos = Vector([])
 running = True
+
+# mouse movement setup
+mouse_pos = Vector([])
+pygame.event.set_grab(True)  # grab the mouse
+pygame.mouse.set_visible(False)  # hide the cursor
+
 while running:
     clock.tick(FPS)
     start_time = pygame.time.get_ticks()
@@ -309,42 +333,44 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                running = False
+
     keys = pygame.key.get_pressed()
 
     if keys[pygame.K_w]:
-        camera.position_vector += Vector([0, speed, 0])
+        camera.position_vector += camera.look_vector * speed
 
     if keys[pygame.K_s]:
-        camera.position_vector += Vector([0, -speed, 0])
+        camera.position_vector += camera.look_vector * -speed
 
     if keys[pygame.K_a]:
-        camera.position_vector += Vector([-speed, 0, 0])
+        strafe_vector = camera.look_vector.rotateZ(-math.pi / 2) * -speed
+        strafe_vector = strafe_vector * Vector([1, 1, -1])
+        camera.position_vector += strafe_vector
 
     if keys[pygame.K_d]:
-        camera.position_vector += Vector([speed, 0, 0])
-
-    if keys[pygame.K_LSHIFT]:
-        camera.position_vector += Vector([0, 0, -speed])
-
-    if keys[pygame.K_f]:
-        camera.position_vector += Vector([0, 0, speed])
+        strafe_vector = camera.look_vector.rotateZ(math.pi / 2) * -speed
+        strafe_vector = strafe_vector * Vector([1, 1, -1])
+        camera.position_vector += strafe_vector
 
     if keys[pygame.K_q]:
-        camera.rotation_vector += Vector([0, 0, 0.001])
+        camera.position_vector += Vector([0, 0, -speed])
 
     if keys[pygame.K_e]:
-        camera.rotation_vector += Vector([0, 0, -0.001])
+        camera.position_vector += Vector([0, 0, speed])
+
 
     # mouse events
-    mouse_pos.nums = pygame.mouse.get_pos()
-    mouse_pos -= Vector([window_size[0] / 2, window_size[1] / 2])
-    mouse_pos.nums[1] *= -1
-    print(mouse_pos)
-    camera.rotation_vector = Vector([-mouse_pos[1] / 100, 0,  mouse_pos[0] / 100])
+    mouse_delta = Vector(pygame.mouse.get_rel())
+    mouse_sensitivity = 0.002
+    camera.rotation_angles += Vector([-mouse_delta[1], 0, -mouse_delta[0]]) * mouse_sensitivity
+
 
     win.fill("black")
    
-    end_time = pygame.time.get_ticks()  # Get the end time of the frame
+    end_time = pygame.time.get_ticks()  # get the end time of the frame
     delta_time = end_time - start_time
 
     fps_text = font.render("FPS: {:.2f}".format(clock.get_fps()), True, (255, 255, 255) if clock.get_fps() > FPS else (255, 0, 0))
@@ -354,7 +380,7 @@ while running:
     win.blit(single_frame_delay_time_text, (10, 30)) 
 
 
-    # o.rotation_vector += Vector([0.001, 0.001, 0.001])
+    nig.rotation_vector += Vector([0, 0.005, 0])
 
 
     scene.render()
