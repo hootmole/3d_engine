@@ -194,7 +194,7 @@ pi = math.pi
 animation_speed = 1
 
 # camera
-c = camera(-1000, window_size)
+c = camera(-2000, window_size)
 
 
 point_color = (255, 0, 0)
@@ -202,7 +202,7 @@ line_color = (0, 0, 255)
 background_color = (0, 0, 0)
 rgb_color = (0, 0, 0)
 
-cube.move_origin([100, 0, 0])
+cube.move_origin([0, 0, 0])
 ob_ = cube
 
 running = True

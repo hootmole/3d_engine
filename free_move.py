@@ -19,7 +19,7 @@ clock = pygame.time.Clock()
 
 class Vector:
     def __init__(self, nums: list):
-        self.nums = list(nums)  # Data vektoru, představující čísla ve vektoru
+        self.nums = nums  # Data vektoru, představující čísla ve vektoru
 
     def __add__(self, other_vector):
         if isinstance(other_vector, Vector):
@@ -363,7 +363,7 @@ while running:
 
 
     # mouse events
-    mouse_delta = Vector(pygame.mouse.get_rel())
+    mouse_delta = Vector(list(pygame.mouse.get_rel()))
     mouse_sensitivity = 0.002
     camera.rotation_angles += Vector([-mouse_delta[1], 0, -mouse_delta[0]]) * mouse_sensitivity
 
